@@ -8,273 +8,28 @@
 # v Подключаемые пакеты v
 # ===========================================================================
 import os
-import importlib
 import math as m
 import time
-import random as r
 import numpy as np
+import treecode.generate_system as generate
+import treecode.create_tree_structure as cts
 import treecode.tree_code as tc
+import treecode.energy_and_momentum as EM
+import treecode.make_graph as graph
+import treecode.input_parametrs as parameters
 # import threading
 from joblib import Parallel, delayed
-# import statistics as stat
-# import matplotlib as mpl
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib import animation
 # ===========================================================================
 # ^ Подключаемые пакеты ^
 # v Используемые функции v
 # ===========================================================================
 
 
-def parameters_test(h, p, l):
-    # Подфункция, позволяющая сгенерировать определенные
-    # параметры для тела
-    x = Distance * (indent_i + h * period) / i_test
-    y = Distance * (indent_j + p * period) / j_test
-    z = Distance * (indent_k + l * period) / k_test
-    # Распределение скоростей и масс считаем нормальным
-    Vx = r.normalvariate(0, 4) * v_avg
-    Vy = r.normalvariate(0, 4) * v_avg
-    Vz = r.normalvariate(0, 4) * v_avg
-    mass = abs(m_avg)
-    Sum = np.array([x, y, z, Vx, Vy, Vz, mass, 0, 0, 0, 0, 0, 0, 0])
-    return Sum
-
-
-def randomize_parameters():
-    # Подфункция, позволяющая сгенерировать случайные параметры для тела
-    x = r.random() * n * Distance
-    y = r.random() * n * Distance
-    z = r.random() * n * Distance
-#   Распределение скоростей и масс считаем нормальным
-#   (пока что квадратичное отклонение выбрано наугад)
-    Vx = r.normalvariate(0, 4) * v_avg
-    Vy = r.normalvariate(0, 4) * v_avg
-    Vz = r.normalvariate(0, 4) * v_avg
-    mass = abs(r.normalvariate(m_avg, 0.5*m_avg))
-    Sum = np.array([x, y, z, Vx, Vy, Vz, mass, 0, 0, 0, 0, 0, 0, 0])
-    return Sum
-
-
-def randomize_ellipsoid():
-    # Подфункция, позволяющая сгенерировать случайные параметры для тела
-    x_r = 0
-    y_r = 0
-    z_r = 0
-    particle_not_generated = True
-    while particle_not_generated:
-        x_r = r.random()
-        y_r = r.random()
-        z_r = r.random()
-        x_el = (2 * x_r - 1) / a_inp
-        y_el = (2 * y_r - 1) / b_inp
-        z_el = (2 * z_r - 1) / c_inp
-        ellipsoid = x_el * x_el + y_el * y_el + z_el * z_el
-        if ellipsoid <= 1:
-            particle_not_generated = False
-    center = n * Distance / 2
-    x = (x_r + 0.5) * center
-    y = (y_r + 0.5) * center
-    z = (z_r + 0.5) * center
-    d_x = x - center
-    d_y = y - center
-    d_z = z - center
-#   Распределение скоростей и масс считаем нормальным
-#   (пока что квадратичное отклонение выбрано наугад)
-    Vx = r.normalvariate(0, 3) * v_avg + w_y * d_z - w_z * d_y
-    Vy = r.normalvariate(0, 3) * v_avg + w_z * d_x - w_x * d_z
-    Vz = r.normalvariate(0, 3) * v_avg + w_x * d_y - w_y * d_x
-    mass = abs(r.normalvariate(m_avg, 0.5*m_avg))
-    Sum = np.array([x, y, z, Vx, Vy, Vz, mass, 0, 0, 0, 0, 0, 0, 0])
-    return Sum
-
-
-def birth_test():
-    # Функция, создающая i*j*k тел
-    # Сначала создаем массив нулей, а затем заполняем его;
-    # тела находятся по первому индексу, параметры - по второму
-    test_particles = np.zeros((i_test * j_test * k_test, 14))
-    Num = 0
-    for l in range(k_test):
-        for p in range(j_test):
-            for h in range(i_test):
-                test_particles[Num] = parameters_test(h, p, l)
-                Num += 1
-    return test_particles
-
-
-def birth_random(body_count):
-    # Функция, создающая "body_count" тел
-    # Сначала создаем массив нулей, а затем заполняем его;
-    # тела находятся по первому индексу, параметры - по второму
-    random_particles = np.zeros((body_count, 14))
-    for l in range(body_count):
-        random_particles[l] = randomize_parameters()
-    return random_particles
-
-
-def birth_ellipsoid(body_count):
-    # Функция, создающая "body_count" тел
-    # Сначала создаем массив нулей, а затем заполняем его;
-    # тела находятся по первому индексу, параметры - по второму
-    random_particles = np.zeros([body_count, 14])
-    for l in range(body_count):
-        random_particles[l] = randomize_ellipsoid()
-    return random_particles
-
-
-def distribution(X0, X_size):
-    # Распределение X_size частиц по ячейкам со стороной Distance
-    # с последующей сортировкой по номерам ячеек (3.04.18)
-    for N_local in range(X_size):
-        n_x = int(m.floor(X0[N_local, 0] / Distance))
-        n_y = int(m.floor(X0[N_local, 1] / Distance))
-        n_z = int(m.floor(X0[N_local, 2] / Distance))
-        if (n_x > n) or (n_y > n) or (n_z > n) or \
-                (n_x < 0) or (n_y < 0) or (n_z < 0):
-            X0[N_local, 11] = -1
-        else:
-            X0[N_local, 11] = n_x * n * n + n_y * n + n_z
-    return X0[X0[:, 11].argsort(kind='mergesort')]
-
-
-def particles_to_cell(Y, Y_size, order_n, n_max):
-    # Функция, определяющая параметры самых малых ячеек из параметров
-    # находящихся внутри частиц (13.04.18)
-    R_local = np.zeros([n_max, 23])
-    part_num = 0
-    part_count = 0
-    L_2 = 3 * Distance * Distance
-    while Y[part_num, 11] < 0:
-        part_num += 1
-        if part_num == (np.size(Y, 0)):
-            break
-    for cell_num in range(n_max):
-        R = np.zeros([12])
-        if not part_num == Y_size:
-            while Y[part_num, 11] == cell_num:
-                R[0:3] += Y[part_num, 0:3] * Y[part_num, 6]
-                R[3] += Y[part_num, 6]
-                part_num += 1
-                if part_num == Y_size:
-                    break
-        R[4] = part_count
-        R[5] = part_num
-        part_count = part_num
-        d_xy = 0
-        d_xz = 0
-        d_yz = 0
-        if not R[3] == 0:
-            # Расчет положения центра масс ячейки
-            R[0:3] = R[0:3] / R[3]
-            # Расчет положения геометрического центра ячейки
-            cell_x = cell_num // (n * n)
-            R[6] = Distance * (0.5 + cell_x)
-            R[7] = Distance * (0.5 + ((cell_num // n) - cell_x * n))
-            R[8] = Distance * (0.5 + (cell_num % n))
-            # Расчет квадрупольного момента для выбранной ячейки
-            for s in range(int(R[4]), int(R[5])):
-                R[9] += Y[s, 6] * (Y[s, 0] - R[0]) * (Y[s, 1] - R[1])
-                R[10] += Y[s, 6] * (Y[s, 0] - R[0]) * (Y[s, 2] - R[2])
-                R[11] += Y[s, 6] * (Y[s, 1] - R[1]) * (Y[s, 2] - R[2])
-                d_xy += Y[s, 6] * Y[s, 0] * Y[s, 1]
-                d_xz += Y[s, 6] * Y[s, 0] * Y[s, 2]
-                d_yz += Y[s, 6] * Y[s, 1] * Y[s, 2]
-            R[9:12] *= 3
-            # Итоговый вид строки с параметрами ячейки
-        R_local[cell_num] = [R[0], R[1], R[2], R[6], R[7], R[8],
-                             R[3], R[9], R[10], R[11], L_2, order_n,
-                             R[4], R[5], 0, 0, 0, 0, 0, 0,
-                             d_xy, d_xz, d_yz]
-    return R_local
-
-
-def cells_to_cell(R_final, order_n, n_max):
-    # Функция, вычисляющая параметры ячеек за счет
-    # находящихся внутри ячеек с меньшим порядком (13.04.18)
-    cell_length = Distance * (n / order_n)
-    n_linear = order_n * 2
-    n_total = int(m.pow(order_n, 3))
-    R_local = np.zeros([n_total, 23])
-    L_2 = 3 * Distance * Distance * n * n / (order_n * order_n)
-    for cell_num in range(n_total):
-        R = np.zeros([10])
-        cell_x = cell_num // (order_n * order_n)
-        cell_y = (cell_num // order_n) - cell_x * order_n
-        cell_z = cell_num % order_n
-        cell_num_0 = 2 * int(cell_x * n_linear * n_linear
-                             + cell_y * n_linear + cell_z)
-        Numbers = [cell_num_0, cell_num_0 + 1,
-                   cell_num_0 + int(n_linear),
-                   cell_num_0 + int(n_linear) + 1,
-                   cell_num_0 + int(n_linear * n_linear),
-                   cell_num_0 + int(n_linear * n_linear) + 1,
-                   cell_num_0 + int(n_linear * n_linear + n_linear),
-                   cell_num_0 + int(n_linear * n_linear + n_linear) + 1]
-        d_xy = 0
-        d_xz = 0
-        d_yz = 0
-#        D_xy = 0
-#        D_xz = 0
-#        D_yz = 0
-        for u in range(8):
-            # Определяем параметры центра масс
-            R[0:3] += R_final[Numbers[u], 0:3] \
-                    * R_final[Numbers[u], 6]
-            R[3] += R_final[Numbers[u], 6]
-            # Определяем доп. параметры, связанные с квадрупольным вкладом
-#            D_xy += R_final[Numbers[u], 6]  \
-#                * R_final[Numbers[u], 0] * R_final[Numbers[u], 1]
-#            D_xz += R_final[Numbers[u], 6]  \
-#                * R_final[Numbers[u], 0] * R_final[Numbers[u], 2]
-#            D_yz += R_final[Numbers[u], 6]  \
-#                * R_final[Numbers[u], 1] * R_final[Numbers[u], 2]
-#            d_xy += R_final[Numbers[u], 20]
-#            d_xz += R_final[Numbers[u], 21]
-#            d_yz += R_final[Numbers[u], 22]
-        if not R[3] == 0:
-            # Расчет положения ЦМ и геометрического центра ячейки
-            R[0:3] = R[0:3] / R[3]
-            R[4] = cell_length * (0.5 + cell_x)
-            R[5] = cell_length * (0.5 + cell_y)
-            R[6] = cell_length * (0.5 + cell_z)
-            # Расчет квадрупольного момента для выбранной ячейки
-#            for s in range(8):
-#                if not R_final[Numbers[s], 6] == 0:
-#                    R[7] += R_final[Numbers[s], 6]          \
-#                        * (R_final[Numbers[s], 0] - R[0])   \
-#                        * (R_final[Numbers[s], 1] - R[1])
-#                    R[8] += R_final[Numbers[s], 6]          \
-#                        * (R_final[Numbers[s], 0] - R[0])   \
-#                        * (R_final[Numbers[s], 2] - R[2])
-#                    R[9] += R_final[Numbers[s], 6]          \
-#                        * (R_final[Numbers[s], 1] - R[1])   \
-#                        * (R_final[Numbers[s], 2] - R[2])
-#            if (R[7] == 0) and (R[8] == 0) and (R[9] == 0):
-#                R[7] = R_final[Numbers[:], 7].sum()
-#                R[8] = R_final[Numbers[:], 8].sum()
-#                R[9] = R_final[Numbers[:], 9].sum()
-#            else:
-#                R[7] += d_xy - D_xy
-#                R[8] += d_xz - D_xz
-#                R[9] += d_yz - D_yz
-#                R[7:10] *= 3
-#        Итоговый вид строки с параметрами ячейки
-        R_local[cell_num] = [R[0], R[1], R[2], R[4], R[5], R[6], R[3],
-                             R[7], R[8], R[9], L_2, order_n,
-                             Numbers[0], Numbers[1], Numbers[2], Numbers[3],
-                             Numbers[4], Numbers[5], Numbers[6], Numbers[7],
-                             d_xy, d_xz, d_yz]
-#    Корректируем номера "дочерних" ячеек
-    R_local[:, 12:20] += n_total
-    R_final[0:(-n_max), 12:20] += n_total
-    return np.vstack((R_local, R_final))
-
-
 def tree_root(Particles, Mass_center):
     # Функция, с которой начинается tree code
     if use_multiprocessing:
+        # Весь объем системы разбивается на 8 кубов
+        # каждый куб обсчитывается в своем процессе
         A0 = Parallel(n_jobs=workers, verbose=0)(
                 delayed(tc.begin_tree)(Particles, Mass_center, i,
                                        n, eps_smooth)
@@ -282,6 +37,8 @@ def tree_root(Particles, Mass_center):
         A = A0[0] + A0[1] + A0[2] + A0[3] + A0[4] + A0[5] + A0[6] + A0[7]
     else:
         A = np.zeros([np.size(Particles, 0), 4])
+        # Весь объем системы разбивается на 8 кубов
+        # каждый куб обсчитывается последовательно на одном ядре
         if not Mass_center[1, 6] == 0:
             A += tc.begin_tree(Particles, Mass_center, 1, n, eps_smooth)
         if not Mass_center[2, 6] == 0:
@@ -301,202 +58,35 @@ def tree_root(Particles, Mass_center):
     return A
 
 
-def tree_code_gravity(Y):
-    # Функция, позволяющая получить новые параметры частиц
-    # из матрицы Y с помощью метода Tree code (13.04.18)
-    order_n = n
-    Y_size = np.size(Y, 0)
+def tree_code_one_step(Y):
+    # Метод leapfrog
+    # рассчет изменения компонент скорости, где
+    # Y[:, 3] - V_x, Y[:, 4] - V_y, Y[:, 5] - V_z,
+    # Y[:, 7] - a_x, Y[:, 8] - a_y, Y[:, 9] - a_z;
+    # по формуле V_{i + 1/2} = V_{i} + a_{i} * dt / 2
     Y[:, 3:6] += Y[:, 7:10] * time_step / 2
+    # рассчет изменения координат, где
+    # Y[:, 0] - x, Y[:, 1] - y, Y[:, 2] - z
+    # по формуле X_{i + 1} = X_{i} + V_{i + 1/2} * dt
     Y[:, 0:3] += Y[:, 3:6] * time_step
-    Y = distribution(Y, Y_size)
-    n_max = int(n * n * n)
-    R_final = particles_to_cell(Y, Y_size, order_n, n_max)
-    while order_n > 1:
-        order_n *= 0.5
-        R_final = cells_to_cell(R_final, order_n, n_max)
-    Y[:, 7:11] = tree_root(Y, R_final)
+    # Сортируем частицы в порядке возрастания номера ячейки
+    Y = cts.distribution(Y, n, Distance)
+    # Создаем древоподобную структуру "снизу вверх"
+    Cells = cts.create_tree(Y, n, Distance)
+    # Проходим древоподобную структуру "сверху вниз"
+    # для получения ускорения и потенциала каждой частицы
+    # Y[:, 10] - потенциал(phi) на i шаге
+    Y[:, 7:11] = tree_root(Y, Cells)
+    # Смотрим, есть ли материальные точки, вылетевшие
+    # за рассматриваемый объем
     if Y[0, 11] < 0:
+        # Считаем взаимодействие с улетевшими точками напрямую
         Y = tc.N_body_direct(Y, eps_smooth)
     Y[:, 7:11] *= G
+    # рассчет изменения компонент скорости
+    # по формуле V_{i + 1} = V_{i + 1/2} + a_{i + 1} * dt / 2
     Y[:, 3:6] += Y[:, 7:10] * time_step / 2
     return Y
-
-
-def momentum_of_system(Y):
-    # Функция, определяющая импульс всей системы и выводящая его в строку
-    P = np.zeros([np.size(Y, 0), 3])
-    P[:, 0] = np.multiply(Y[:, 3], Y[:, 6])
-    P[:, 1] = np.multiply(Y[:, 4], Y[:, 6])
-    P[:, 2] = np.multiply(Y[:, 5], Y[:, 6])
-    print('Полный импульс системы ', P.sum(axis=0))
-
-
-def momentum_of_particles(Y):
-    # Функция, определяющая импульс всех материальных точек
-    P = np.zeros([np.size(Y, 0), 3])
-    P[:, 0] = np.multiply(Y[:, 3], Y[:, 6])
-    P[:, 1] = np.multiply(Y[:, 4], Y[:, 6])
-    P[:, 2] = np.multiply(Y[:, 5], Y[:, 6])
-    if np.size(Y, 0) > 10:
-        print('Импульсы всех материальных точек сохранены в файл')
-        np.savetxt('Импульсы материальных точек.txt', P)
-    else:
-        print(P)
-
-
-def kinetic_energy_Newton(Y):
-    # Функция, определяющая кинетическую энергию каждой частицы
-    V = np.multiply(Y[:, 3:6], Y[:, 3:6])
-    E = V.sum(axis=1)
-    E = np.multiply(E[:], Y[:, 6])
-    E /= 2
-    return E
-
-
-def max_dT(Y):
-    # Функция, определяющая максимальную разницу
-    # кинетической энергии частиц за шаг
-    E = kinetic_energy_Newton(Y)
-    E = E - Y[:, 12]
-    dE_plus = np.amax(E)
-    dE_minus = np.amin(E)
-    if abs(dE_minus) > dE_plus:
-        dE = dE_minus
-    else:
-        dE = dE_plus
-    return dE
-
-
-def max_dU(Y):
-    # Функция, определяющая максимальную разницу
-    # потенциальной энергии частиц за шаг
-    E = potential_energy_Newton(Y)
-    E = E - Y[:, 13]
-    dE_plus = np.amax(E)
-    dE_minus = np.amin(E)
-    if abs(dE_minus) > dE_plus:
-        dE = dE_minus
-    else:
-        dE = dE_plus
-    return dE
-
-
-def plot_max_dE_kinetic(dE):
-    # Функция, создающая график максимальной разницы
-    # кинетической энергии частиц за все время работы программы
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(dE[1:, 0], dE[1:, 4])
-    ax.set_xlabel('Номер шага')
-    ax.set_ylabel('Kinetic energy')
-    ax.set_title('Max kinetic energy difference per step')
-    plt.savefig('Максимальное изменение кинетической энергии за шаг', dpi=640)
-    plt.show()
-
-
-def plot_max_dE_potential(dE):
-    # Функция, создающая график максимальной разницы
-    # потенциальной энергии частиц за все время работы программы
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(dE[1:, 0], dE[1:, 5])
-    ax.set_xlabel('Номер шага')
-    ax.set_ylabel('Potential energy')
-    ax.set_title('Max potential energy difference per step')
-    plt.savefig('Максимальное изменение потенциальной энергии за шаг', dpi=640)
-    plt.show()
-
-
-def potential_energy_Newton(Y):
-    # Функция, определяющая кинетическую энергию каждой частицы
-    E = np.multiply(Y[:, 10], Y[:, 6])
-    return E
-
-
-def system_kinetic_energy(Y):
-    # Функция, определяющая полную энергию системы
-    E = kinetic_energy_Newton(Y)
-    E = E.sum(axis=0)
-    return E
-
-
-def system_potential_energy(Y):
-    E = potential_energy_Newton(Y)
-    E = E.sum(axis=0)
-    return E
-
-
-def system_energy_Newton(Y):
-    # Функция, определяющая полную энергию системы
-    E = system_kinetic_energy(Y)
-    E = E + system_potential_energy(Y)
-    return E
-
-
-def plot_avg(E):
-    # Функция, создающая график кинетической энергии частиц
-    # за все время работы программы
-    Energy = np.copy(E[:, 1:3])
-    Energy /= N
-    fig = plt.figure()
-    ax = fig.add_subplot(211)
-    ax1 = fig.add_subplot(212)
-    ax.plot(E[:, 0], Energy[:, 0])
-    ax1.plot(E[:, 0], Energy[:, 1])
-    ax.xaxis.set_ticklabels([])
-    ax1.set_xlabel('Номер шага')
-    ax.set_ylabel('Kinetic enegry')
-    ax1.set_ylabel('Potential energy')
-    ax.set_title('Average energy')
-    ax1.set_title(' ')
-    plt.savefig('Средняя энергия материальной точки', dpi=640)
-    plt.show()
-
-
-def plot_system_enegry(E):
-    # Функция, создающая график потенциальной энергии частиц
-    # за все время работы программы
-    fig = plt.figure()
-    ax = fig.add_subplot(211)
-    ax1 = fig.add_subplot(212)
-    ax.plot(E[:, 0], E[:, 1])
-    ax1.plot(E[:, 0], Energy[:, 2])
-    ax.xaxis.set_ticklabels([])
-    ax1.set_xlabel('Номер шага')
-    ax.set_ylabel('Kinetic enegry')
-    ax1.set_ylabel('Potential energy')
-    ax.set_title('Energy at step')
-    plt.savefig('Кинетическая и потенциальная энергия системы', dpi=640)
-    plt.show()
-
-
-def plot_total_energy(E):
-    # Функция, создающая график потенциальной энергии частиц
-    # за все время работы программы
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(E[:, 0], E[:, 3])
-    ax.set_xlabel('Номер шага')
-    ax.set_ylabel('Энергия')
-    ax.set_title('Полная энергия системы')
-    plt.savefig('Полная энергия системы', dpi=640)
-    plt.show()
-
-
-def plot_combined_energy(E):
-    # Функция, создающая график потенциальной энергии частиц
-    # за все время работы программы
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(E[:, 0], E[:, 3], label='Полная энергия', color='black')
-    ax.plot(E[:, 0], E[:, 1], label='Кинетическая энергия', color='red')
-    ax.plot(E[:, 0], E[:, 2], label='Потенциальная энергия', color='blue')
-    ax.set_xlabel('Номер шага')
-    ax.set_ylabel('Энергия')
-    ax.set_title('Полная энергия системы')
-    plt.legend()
-    plt.savefig('Кинетическая, потенциальная, полная энергия системы', dpi=640)
-    plt.show()
 
 
 def is_gravity_field_weak(Y):
@@ -504,7 +94,11 @@ def is_gravity_field_weak(Y):
     # слишком сильным для применения используемой модели
     global error
     global error_name
+    # Считаем величину phi / c^2, где phi - гравитационный потенциал
     Array_phi = abs(Y[:, 10] / c_2)
+    # если модуль phi / c^2 превышает определенное значение, то
+    # гравитационное поле считаем сильным что выходит за границы
+    # применимости используемой модели
     Array_phi = Array_phi >= 0.05
     if Array_phi.any():
         error = True
@@ -524,82 +118,14 @@ def speed_limit(Y):
         error_name = 'FTL error'
 
 
-def screenshot(System_parameters, name, point_size):
-    # Функция для "скирншота" положения всех частиц
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    x = System_parameters[:, 0]
-    y = System_parameters[:, 1]
-    z = System_parameters[:, 2]
-    ax.scatter(x, y, z, color='red', s=point_size)
-    ax.autoscale(False)
-    ax.set_xlabel('x, кпк')
-    ax.set_ylabel('y, кпк')
-    ax.set_zlabel('z, кпк')
-    plt.savefig(name, dpi=1280)
-#    plt.show()
-
-
-def input_int_value(msg_0, msg_1, msg_2):
-    print(msg_0)
-    continue_input = True
-    while continue_input:
-        try:
-            variable = int(input())
-            if variable > 0:
-                continue_input = False
-        except ValueError:
-            print(msg_1)
-            print(msg_2)
-    return variable
-
-
-def input_float_value(msg_0, msg_00, msg_000, msg_1, msg_2):
-    print(msg_0)
-    print(msg_00)
-    print(msg_000)
-    continue_input = True
-    while continue_input:
-        try:
-            variable = float(input())
-            if variable >= 0:
-                continue_input = False
-            else:
-                print('Введено некорректное значение. Попробуйте еще раз')
-        except ValueError:
-            print(msg_1)
-            print(msg_2)
-    return variable
-
-
-def input_float_less_1_value(msg_0, msg_00, msg_1, crit):
-    print(msg_0)
-    print(msg_00 + str(crit))
-    continue_input = True
-    while continue_input:
-        try:
-            variable = float(input())
-            if (variable >= -1) and (variable <= 1):
-                continue_input = False
-            else:
-                print('Введено некорректное значение. Попробуйте еще раз')
-        except ValueError:
-            print(msg_1)
-    return variable
-
-# ===========================================================================
-# ^ Используемые функции ^
-
-
 if __name__ == "__main__":
-    importlib.reload(tc)
     # v Константы v
     # =======================================================================
     # Гравитационная постоянная
     # G = 6.67408313 * m.pow(10, -11)  # м^3/(кг*с^2)
     G = 4.51811511 * m.pow(10, -15)  # кпк^3/(М_(Солнца)* (10^12 с)^2)
     # G = 4.51811511 * m.pow(10, -7)  # кпк^3/(М_(Млечного пути)* (10^15 с)^2)
-# Скорость света
+    # Скорость света
     # c = 299792458 # м/с
     c = 9.7156188999  # кпк/(10^12 с)
 # ===========================================================================
@@ -615,61 +141,10 @@ if __name__ == "__main__":
     continue_input = True
     interrupted = False
     workers = os.cpu_count()
-    msg_N_0 = 'Введите число материальных точек'
-    msg_N_1 = 'Число материальных точек всегда должно быть целым'
-    msg_N_2 = 'Введите число материальных точек еще раз'
-    msg_n_0 = 'Введите количество ячеек в формате 2^n (нужно задать n)'
-    msg_n_1 = 'Число ячеек всегда должно быть целым'
-    msg_n_2 = 'Введите число ячеек еще раз'
-    msg_steps_0 = 'Введите число временных шагов'
-    msg_steps_1 = 'Введено недопустимое число шагов'
-    msg_steps_2 = 'Введите число шагов еще раз'
-    msg_m_0 = 'Введите среднюю массу материальных точкек в массах галактик'
-    msg_m_00 = '(Масса галактики имеет порядок 10^41 кг)'
-    msg_m_1 = 'Cредняя масса материальной точки должна быть числом'
-    msg_m_2 = 'Введите среднюю массу еще раз'
-    msg_v_0 = 'Введите среднюю скорость материальных точкек в кпк/(10^12 с)'
-    msg_v_00 = '(1 кпк/(10^12 с) = 3,08567758*10^7 м/с)'
-    msg_v_000 = 'ВАЖНО ПОМНИТЬ! c = 9.7156188999 кпк/(10^12 с)'
-    msg_v_1 = 'Cредняя скорость материальной точки должна быть числом'
-    msg_v_2 = 'Введите среднюю скорость материальных точек еще раз'
-    msg_d_0 = 'Введите размер ячейки в кпк'
-    msg_d_1 = 'Размер ячейки должен быть в виде числа'
-    msg_d_2 = 'Введите размер ячейки еще раз'
-    msg_t_0 = 'Введите временной шаг в единицах (10^12 с)'
-    msg_t_1 = 'Временной шаг должен быть в виде числа'
-    msg_t_2 = 'Введите временной шаг еще раз'
-    msg_ind_0 = 'Введите отступ от границы рассматриваемой'
-    msg_ind_i_0 = 'области по оси X в кпк'
-    msg_ind_j_0 = 'области по оси Y в кпк'
-    msg_ind_k_0 = 'области по оси Z в кпк'
-    msg_ind_1 = 'Отступ должен быть в виде числа'
-    msg_ind_2 = 'Введите отступ еще раз'
-    msg_i_0 = 'Введите число материальных точек по оси X'
-    msg_j_0 = 'Введите число материальных точек по оси Y'
-    msg_k_0 = 'Введите число материальных точек по оси Z'
-    msg_axis_1 = 'Число материальных точек всегда должно быть целым'
-    msg_axis_2 = 'Введите число материальных точек еще раз'
-    msg_per_0 = 'Введите расстояние между двумя соседними точками,'
-    msg_per_00 = 'расположенных на одной оси в единицах длины ячейки'
-    msg_per_1 = 'Расстояние должно быть в виде числа'
-    msg_per_2 = 'Введите расстояние ячейки еще раз'
-    msg_a_0 = 'Введите величину полуоси эллипсоида по оси X'
-    msg_b_0 = 'Введите величину полуоси эллипсоида по оси Y'
-    msg_c_0 = 'Введите величину полуоси эллипсоида по оси Z'
-    msg_abc_0 = 'от 0 до 1. Где 1 соответствует четверти размера системы'
-    msg_abc_1 = 'Длина полуоси должна быть числом'
-    msg_w_0 = 'Введите начальную угловую скорость в размерности рад/(10^12 с)'
-    msg_wx_0 = 'в плоскости YZ. Величина не должна превышать '
-    msg_wy_0 = 'в плоскости XZ. Величина не должна превышать '
-    msg_wz_0 = 'в плоскости XY. Величина не должна превышать '
-    msg_w_1 = 'Угловая скорость должна быть числом'
-    msg_eps_0 = 'Введите смягчающую длину потенциала в кпк'
-    msg_eps_1 = 'Смягчающая длина должна быть числом'
 
 # Временной интервал
     # time_step = pow(10, 13)  # с
-    time_step = 100.0  # 0.000025  # 10^12 с
+    time_step = 5.0  # 0.000025  # 10^12 с
     # time_step = 0.01  # 10^15 с
 
 # Процентное распределение материи по типу
@@ -678,7 +153,7 @@ if __name__ == "__main__":
     v_m = 0.05  # Видимая материя
 
 # Параметр "сглаживания" гравитационного взаимодействия на близких дистанциях
-    eps_smooth = 5.0  # кпк
+    eps_smooth = 0.0  # кпк
 
 # Параметры, которые нужны чаще всего (можно и нужно трогать)
 # Количество ячеек по одной оси координат (для tree codes) в виде 2^(n)
@@ -697,6 +172,7 @@ if __name__ == "__main__":
     indent_i = 0.0
     indent_j = 0.0
     indent_k = 0.0
+    period = 0.0
 
 # Параметры генерации эллипсоида в единицах (n * Distance / 2)
     a_inp = 1.0
@@ -716,7 +192,7 @@ if __name__ == "__main__":
     # v_avg = 0 #1.3 * pow(10, -2) / np.sqrt(3) # Мпк/(10^15 c)
 
 # Количество частиц
-    N = 1000
+    N = 10000
 # Число шагов
     Steps = 1
 # Номера шагов, на которых требуется "сфотографировать положение всех
@@ -724,13 +200,13 @@ if __name__ == "__main__":
     make_prelaunch_screenshot = False
     scr_step = []
 # Тип сгенерированной системы (обязательно заполнить!)
-    system_generation_type = 'last'
+    system_generation_type = 'ellipsoid'
 # Использовать несколько процессов для вычислений
     use_multiprocessing = False
 # Использовать данные, введенные вручную
     use_manual_input = False
 # Использовать телеметрию
-    use_telemetry = True
+    use_telemetry = False
 # Обратить время вспять
     inverse_time = False
 # ===========================================================================
@@ -738,37 +214,8 @@ if __name__ == "__main__":
 # v Область с исполняемым кодом v
 # ===========================================================================
     if use_manual_input:
-        print('Введите название используемой конфигурации системы')
-        system_generation_type = str(input())
-        Distance = input_float_value(msg_d_0, '', '', msg_d_1, msg_d_2)
-        n = input_int_value(msg_n_0, msg_n_1, msg_n_2)
-        time_step = input_float_value(msg_t_0, '', '', msg_t_1, msg_t_2)
-        Steps = input_int_value(msg_steps_0, msg_steps_1, msg_steps_2)
-        eps_smooth = input_float_value(msg_eps_0, '', '', msg_eps_1, '')
-        if (system_generation_type == 'random') or \
-                (system_generation_type == 'cube') or\
-                (system_generation_type == 'ellipsoid'):
-            m_avg = input_float_value(msg_m_0, msg_m_00, '', msg_m_1, msg_m_2)
-            m_avg *= m.pow(10, 11)
-            v_avg = input_float_value(msg_v_0, msg_v_00, msg_v_000,
-                                      msg_v_1, msg_v_2)
-            if system_generation_type == 'random':
-                N = input_int_value(msg_N_0, msg_N_1, msg_N_2)
-            if system_generation_type == 'ellipsoid':
-                N = input_int_value(msg_N_0, msg_N_1, msg_N_2)
-                w_crit = 2 * c / (n * Distance)
-                a_inp = input_float_less_1_value(msg_a_0, msg_abc_0,
-                                                 msg_abc_1, '')
-                b_inp = input_float_less_1_value(msg_b_0, msg_abc_0,
-                                                 msg_abc_1, '')
-                c_inp = input_float_less_1_value(msg_c_0, msg_abc_0,
-                                                 msg_abc_1, '')
-                w_x = input_float_less_1_value(msg_w_0, msg_wx_0,
-                                               msg_w_1, w_crit)
-                w_y = input_float_less_1_value(msg_w_0, msg_wy_0,
-                                               msg_w_1, w_crit)
-                w_z = input_float_less_1_value(msg_w_0, msg_wz_0,
-                                               msg_w_1, w_crit)
+        # Осуществляем ввод всех используемых параметров вручную
+        inp_parameters = parameters.manual_input(c)
         print('Делать скриншоты системы?')
         print('y/n')
         input_variable = input()
@@ -822,6 +269,18 @@ if __name__ == "__main__":
         else:
             print('Введено недопустимое значение')
             inverse_time = False
+        time_step = int(inp_parameters[18])
+        Steps = int(inp_parameters[19])
+        eps_smooth = int(inp_parameters[20])
+        system_generation_type = str(inp_parameters[21])
+    else:
+        inp_parameters = [N, m_avg, v_avg,
+                          n, Distance,
+                          a_inp, b_inp, c_inp,
+                          w_x, w_y, w_z,
+                          i_test, j_test, k_test,
+                          indent_i, indent_j, indent_k,
+                          period]
     if (d_e >= 0) and (d_m >= 0) and (v_m > 0) \
             and (abs(1 - d_e - d_m - v_m) < 0.00000000001):
         m_avg = m_avg * (1 + (d_m / v_m))
@@ -841,42 +300,30 @@ if __name__ == "__main__":
     try:
         try:
             try:
-                if system_generation_type == 'cube':
-                    if use_manual_input:
-                        indent_i = input_float_value(msg_ind_0, msg_ind_i_0,
-                                                     '', msg_ind_1, msg_ind_2)
-                        indent_j = input_float_value(msg_ind_0, msg_ind_j_0,
-                                                     '', msg_ind_1, msg_ind_2)
-                        indent_k = input_float_value(msg_ind_0, msg_ind_k_0,
-                                                     '', msg_ind_1, msg_ind_2)
-                        i_test = input_int_value(msg_i_0, msg_axis_1,
-                                                 msg_axis_2)
-                        j_test = input_int_value(msg_j_0, msg_axis_1,
-                                                 msg_axis_2)
-                        k_test = input_int_value(msg_k_0, msg_axis_1,
-                                                 msg_axis_2)
-                        period = input_float_value(msg_per_0, msg_per_00, '',
-                                                   msg_per_1, msg_per_2)
-                    X = birth_test()
-                    np.savetxt('last config.txt', X)
-                elif system_generation_type == 'random':
-                    X = birth_random(N)
-                    np.savetxt('last config.txt', X)
-                elif system_generation_type == 'ellipsoid':
-                    if (a_inp == 0) or (b_inp == 0) or (c_inp == 0):
+                # Генерируем или загружаем конфигурацию системы
+                # в зваисимости от указанных/введенный параметров
+                if (system_generation_type == 'cube')\
+                    or (system_generation_type == 'random')\
+                        or (system_generation_type == 'ellipsoid'):
+                    X = generate.generate_system(system_generation_type,
+                                                 inp_parameters)
+                    if isinstance(X, str):
                         not_forbid_launch = False
                         print('Полуоси эллипсоида не могут быть нулевыми')
                     else:
-                        X = birth_ellipsoid(N)
                         np.savetxt('last config.txt', X)
                 elif system_generation_type == 'last':
                     X = np.loadtxt('last config.txt', dtype='float64')
+                    N = np.size(X, 0)
                 elif system_generation_type == 'debug':
                     X = np.loadtxt('error config.txt', dtype='float64')
+                    N = np.size(X, 0)
                 elif system_generation_type == 'test':
                     X = np.loadtxt('test config.txt', dtype='float64')
+                    N = np.size(X, 0)
                 elif system_generation_type == 'final':
                     X = np.loadtxt('final config.txt', dtype='float64')
+                    N = np.size(X, 0)
                 else:
                     not_forbid_launch = False
                     print('Выбранная конфигурация не может быть загружена')
@@ -890,10 +337,14 @@ if __name__ == "__main__":
         not_forbid_launch = False
         print('Неприемлимое число материальных точек')
     if not_forbid_launch:
+        # Если загруженная конфигурация старая, то придаем ей
+        # используемую в настоящий момент форму
         if np.size(X, 1) == 12:
             migration = np.zeros([np.size(X, 0), 2])
             X = np.hstack((X, migration))
             np.savetxt('last config.txt', X)
+        # Определяем количество используемых процессов в зависимости
+        # от используемого процессора
         if workers >= 8:
             workers = 8
         elif workers >= 4:
@@ -904,55 +355,59 @@ if __name__ == "__main__":
             use_multiprocessing = False
         try:
             if make_prelaunch_screenshot:
-                screenshot(X, 'Шаг 0', marker_size)
+                graph.screenshot(X, 'Шаг 0', marker_size)
             Energy = np.zeros([Steps, 6])
             start = time.time()
             for q in range(Steps):
+                # Проверяем, не появились ли в системе сильные
+                # гравитационные поля или скорости, равные или
+                # превышающие световую
                 speed_limit(X)
                 is_gravity_field_weak(X)
                 if error:
                     np.savetxt('error config.txt', X)
-                    screenshot(X, error_name, marker_size)
+                    graph.screenshot(X, error_name, marker_size)
                     print(error_name + ' at step ' + str(q))
                     break
-                X = tree_code_gravity(X)
+                # Выполняем один шаг по алгоритму tree code
+                X = tree_code_one_step(X)
+                # Записываем энергию системы в отдельный массив
+                # 1) номер шага
+                # 2) кинетическая энергия всей системы
+                # 3) потенциальная энергия всей системы
+                # 4) полная энергия всей системы
+                # 5) максимальная разница в кинетической энергии
+                # между исследуемым шагом и предыдущим
+                # 6) максимальная разница в потенциальной энергии
+                # между исследуемым шагом и предыдущим
                 Energy[q] = [q,
-                             system_kinetic_energy(X),
-                             system_potential_energy(X),
-                             system_energy_Newton(X),
-                             max_dT(X),
-                             max_dU(X)]
-                X[:, 12] = kinetic_energy_Newton(X)
-                X[:, 13] = potential_energy_Newton(X)
+                             EM.system_kinetic_energy(X),
+                             EM.system_potential_energy(X),
+                             EM.system_energy_Newton(X),
+                             EM.max_dT(X),
+                             EM.max_dU(X)]
+                # записываем кинетическую и потенциальную энергию
+                # каждой частицы для последующего использования
+                X[:, 12] = EM.kinetic_energy_Newton(X)
+                X[:, 13] = EM.potential_energy_Newton(X)
                 if q in scr_step:
-                    screenshot(X, 'Шаг ' + str(q), marker_size)
+                    graph.screenshot(X, 'Шаг ' + str(q), marker_size)
             computing_time = time.time() - start
             print("Время выполнения", computing_time, "с")
+            print(np.size(X, 0))
             if use_telemetry:
-                momentum_of_system(X)
-                plot_max_dE_kinetic(Energy)
-                plot_max_dE_potential(Energy)
-                plot_avg(Energy)
-                plot_system_enegry(Energy)
-                plot_total_energy(Energy)
-                plot_combined_energy(Energy)
+                EM.momentum_of_system(X)
+                graph.full_telemetry(Energy, N)
         except KeyboardInterrupt:
             print('Работа программы прервана')
-            momentum_of_system(X)
-            plot_max_dE_kinetic(Energy)
-            plot_max_dE_potential(Energy)
-            plot_avg(Energy)
-            plot_system_enegry(Energy)
-            plot_total_energy(Energy)
-            plot_combined_energy(Energy)
+            EM.momentum_of_system(X)
+            graph.full_telemetry(Energy, N)
         print('Сохранить финальную конфигурацию системы?')
-        print('y/n')
+        print('y?')
         input_variable = input()
         if input_variable == 'y':
             np.savetxt('final config.txt', X)
-        elif input_variable == 'n':
-            print('Конфигурация не будет сохранена')
         else:
-            print('Введено недопустимое значение')
+            print('Конфигурация не будет сохранена')
 # ===========================================================================
 # ^ Область с исполняемым кодом ^
