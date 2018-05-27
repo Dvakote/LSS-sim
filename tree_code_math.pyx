@@ -2,7 +2,7 @@ import numpy as np
 cimport cython
 from numpy cimport ndarray
 cimport numpy as np
-from libc.math cimport sqrt
+from libc.math cimport sqrt, exp
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
@@ -132,6 +132,7 @@ cpdef g_force_Newton(np.ndarray[DTYPE_t, ndim=2] Particles,
     # Ускорение по Ньютону
     cdef ndarray A = np.zeros([total_part, 4],  dtype=DTYPE)
     cdef double m
+    cdef double m1
     cdef double dx0
     cdef double x1
     cdef double dy0
@@ -140,25 +141,116 @@ cpdef g_force_Newton(np.ndarray[DTYPE_t, ndim=2] Particles,
     cdef double z1
     cdef double r_1
     cdef double r_3
+    cdef double r3
+    cdef int k
     cdef int l
-    for l in range(total_part):
-        if not l == part_num:
-            m = Particles[part_num, 6]
-            dx0 = Particles[l, 0]
-            x1 = Particles[part_num, 0]
-            dy0 = Particles[l, 1]
-            y1 = Particles[part_num, 1]
-            dz0 = Particles[l, 2]
-            z1 = Particles[part_num, 2]
-            dx0 = x1 - dx0
-            dy0 = y1 - dy0
-            dz0 = z1 - dz0
-            r_1 = smooth_distance(dx0, dy0, dz0, smooth)
-            r_3 = m / (r_1 * r_1 * r_1)
-            A[l, 0] = dx0 * r_3
-            A[l, 1] = dy0 * r_3
-            A[l, 2] = dz0 * r_3
-            A[l, 3] = - m / r_1
+    for k in range(part_num):
+        for l in range(total_part):
+            if not l == k:
+                m = Particles[k, 6]
+                dx0 = Particles[l, 0]
+                x1 = Particles[k, 0]
+                dy0 = Particles[l, 1]
+                y1 = Particles[k, 1]
+                dz0 = Particles[l, 2]
+                z1 = Particles[k, 2]
+                dx0 = x1 - dx0
+                dy0 = y1 - dy0
+                dz0 = z1 - dz0
+                r_1 = smooth_distance(dx0, dy0, dz0, smooth)
+                r_3 = 1 / (r_1 * r_1 * r_1)
+                if l >= part_num:
+                    m1 = Particles[l, 6]
+                    r3 = r_3 * m1
+                    A[k, 0] += - dx0 * r3
+                    A[k, 1] += - dy0 * r3
+                    A[k, 2] += - dz0 * r3
+                    A[k, 3] += - m1 / r_1
+                r_3 = r_3 * m
+                A[l, 0] += dx0 * r_3
+                A[l, 1] += dy0 * r_3
+                A[l, 2] += dz0 * r_3
+                A[l, 3] += - m / r_1
+    return A
+
+@cython.cdivision(True)
+cpdef int_Ps_to_P_exp(np.ndarray[DTYPE_t, ndim=2] Particles,
+                      int n1, int n2,
+                      int n_1, int n_2, double eps_smooth,
+                      double alpha, double lambd):
+    assert Particles.dtype == DTYPE
+    cdef double a_x
+    cdef double a_y
+    cdef double a_z
+    cdef double phi
+    cdef double r_1
+    cdef double r1
+    cdef double r_2
+    cdef double m
+    cdef double dx0
+    cdef double x1
+    cdef double dy0
+    cdef double y1
+    cdef double dz0
+    cdef double z1
+    cdef double exp_add
+    cdef int part_num
+    cdef int num
+    cdef int counter = 0
+    cdef ndarray A = np.zeros([n2 - n1, 4], dtype=DTYPE)
+    for part_num in range(n1, n2):
+        a_x = 0
+        a_y = 0
+        a_z = 0
+        phi = 0
+        if (part_num >= n_1) and (part_num < n_2):
+            for num in range(n_1, n_2):
+                if not num == part_num:
+                    m = Particles[num, 6]
+                    dx0 = Particles[part_num, 0]
+                    x1 = Particles[num, 0]
+                    dy0 = Particles[part_num, 1]
+                    y1 = Particles[num, 1]
+                    dz0 = Particles[part_num, 2]
+                    z1 = Particles[num, 2]
+                    dx0 = x1 - dx0
+                    dy0 = y1 - dy0
+                    dz0 = z1 - dz0
+                    r1 = smooth_distance(dx0, dy0, dz0, eps_smooth)
+                    r_1 = 1 / r1
+                    r_2 = m * r_1 * r_1
+                    exp_add = alpha * exp(- r1 / lambd)
+                    r_2 = r_2 * (r_1 + exp_add * (r_1 + (1 / lambd)))
+                    a_x += dx0 * r_2
+                    a_y += dy0 * r_2
+                    a_z += dz0 * r_2
+                    phi += (m * r_1) * (1 + exp_add)
+        else:
+            for num in range(n_1, n_2):
+                m = Particles[num, 6]
+                dx0 = Particles[part_num, 0]
+                x1 = Particles[num, 0]
+                dy0 = Particles[part_num, 1]
+                y1 = Particles[num, 1]
+                dz0 = Particles[part_num, 2]
+                z1 = Particles[num, 2]
+                dx0 = x1 - dx0
+                dy0 = y1 - dy0
+                dz0 = z1 - dz0
+                r1 = smooth_distance(dx0, dy0, dz0, eps_smooth)
+                r_1 = 1 / r1
+                r_2 = m * r_1 * r_1
+                exp_add = alpha * exp(- r1 / lambd)
+                r_2 = r_2 * (r_1 + exp_add * (r_1 + (1 / lambd)))
+                a_x += dx0 * r_2
+                a_y += dy0 * r_2
+                a_z += dz0 * r_2
+                phi += (m * r_1) * (1 + exp_add)
+        A[counter, 0] = a_x
+        A[counter, 1] = a_y
+        A[counter, 2] = a_z
+        A[counter, 3] = - phi
+        counter += 1
     return A
 
 # def quadrupole(Mass_center, num, r_1, r_3, delta_x, delta_y, delta_z):

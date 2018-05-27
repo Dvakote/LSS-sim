@@ -28,13 +28,14 @@ def particles_to_cell(Y, Y_size, order_n, n_max):
     part_count = 0
     L_2 = 3 * Distance * Distance
     while Y[part_num, 11] < 0:
+        part_count += 1
         part_num += 1
         if part_num == (np.size(Y, 0)):
             break
     for cell_num in range(n_max):
         R = np.zeros([12])
         if not part_num == Y_size:
-            while Y[part_num, 11] == cell_num:
+            while int(Y[part_num, 11]) == cell_num:
                 R[0:3] += Y[part_num, 0:3] * Y[part_num, 6]
                 R[3] += Y[part_num, 6]
                 part_num += 1

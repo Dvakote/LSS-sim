@@ -5,6 +5,34 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
+def plot_xt(x_t):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x_t[:, 0], x_t[:, 1], label='x_1', color='green')
+    ax.plot(x_t[:, 0], x_t[:, 2], label='x_2', color='red')
+    ax.plot(x_t[:, 0], x_t[:, 3], label='x_3', color='blue')
+    ax.set_xlabel('Номер шага')
+    ax.set_ylabel('X')
+    ax.set_title('X')
+    plt.legend()
+    plt.savefig('Xt', dpi=640)
+
+
+def plot_momentum_of_system(P):
+    # Функция, создающая графики импульса системы
+    # за все время работы программы
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(P[:, 0], P[:, 6], label='P_x', color='black')
+    ax.plot(P[:, 0], P[:, 7], label='P_y', color='red')
+    ax.plot(P[:, 0], P[:, 8], label='P_z', color='blue')
+    ax.set_xlabel('Номер шага')
+    ax.set_ylabel('Импульс')
+    ax.set_title('Импульс системы')
+    plt.legend()
+    plt.savefig('Импульс системы', dpi=640)
+
+
 def plot_max_dE_kinetic(dE):
     # Функция, создающая график максимальной разницы
     # кинетической энергии частиц за все время работы программы
@@ -108,6 +136,7 @@ def screenshot(System_parameters, name, point_size):
 
 
 def full_telemetry(E, N):
+    plot_momentum_of_system(E)
     plot_max_dE_kinetic(E)
     plot_max_dE_potential(E)
     plot_avg(E, N)

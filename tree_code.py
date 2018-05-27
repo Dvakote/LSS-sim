@@ -16,13 +16,13 @@ def N_body_direct(X0, smooth):
     A = np.zeros((total_part, 4))
     part_num = 0
     while X0[part_num, 11] < 0:
-        A += tcm.g_force_Newton(X0, part_num, total_part, smooth)
-#        for l in range(total_part):
-#            if not part_num == l:
-#                A[l] = g_force_Newton(X0, part_num, l, smooth)
         part_num += 1
         if part_num == total_part:
             break
+    A = tcm.g_force_Newton(X0, part_num, total_part, smooth)
+    # for l in range(total_part):
+    #   if not part_num == l:
+    #       A[l] = g_force_Newton(X0, part_num, l, smooth)
     X0[:, 7:11] += A
     return X0
 

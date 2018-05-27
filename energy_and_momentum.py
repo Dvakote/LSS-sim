@@ -9,7 +9,8 @@ def momentum_of_system(Y):
     P[:, 0] = np.multiply(Y[:, 3], Y[:, 6])
     P[:, 1] = np.multiply(Y[:, 4], Y[:, 6])
     P[:, 2] = np.multiply(Y[:, 5], Y[:, 6])
-    print('Полный импульс системы ', P.sum(axis=0))
+    momentum = P.sum(axis=0)
+    return momentum
 
 
 def momentum_of_particles(Y):
@@ -25,18 +26,33 @@ def momentum_of_particles(Y):
         print(P)
 
 
+def set_system_momentum_to_0(Y):
+    size_Y = np.size(Y, 0)
+    speed_change = np.zeros([size_Y, 3])
+    total_momentum = momentum_of_system(Y)
+    total_momentum = total_momentum / size_Y
+    for i in range(size_Y):
+        speed_change[i] = total_momentum
+    speed_change[:, 0] /= Y[:, 6]
+    speed_change[:, 1] /= Y[:, 6]
+    speed_change[:, 2] /= Y[:, 6]
+    Y[:, 3:6] = Y[:, 3:6] - speed_change
+    return Y
+
+
 def kinetic_energy_Newton(Y):
     # Функция, определяющая кинетическую энергию каждой частицы
     V = np.multiply(Y[:, 3:6], Y[:, 3:6])
     E = V.sum(axis=1)
     E = np.multiply(E[:], Y[:, 6])
-    E /= 2
+    E *= 0.5
     return E
 
 
 def potential_energy_Newton(Y):
     # Функция, определяющая кинетическую энергию каждой частицы
     E = np.multiply(Y[:, 10], Y[:, 6])
+    E *= 0.5
     return E
 
 
@@ -56,7 +72,7 @@ def system_potential_energy(Y):
 def system_energy_Newton(Y):
     # Функция, определяющая полную энергию системы
     E = system_kinetic_energy(Y)
-    E = E + system_potential_energy(Y)
+    E += system_potential_energy(Y)
     return E
 
 

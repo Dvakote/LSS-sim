@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import math as m
-
 
 def input_int_value(msg_0, msg_1, msg_2):
     # Функция, обеспечивающая ввод целого положительного числа
@@ -118,7 +116,6 @@ def manual_input(c):
         (system_generation_type == 'cube') or\
             (system_generation_type == 'ellipsoid'):
         m_avg = input_float_value(msg_m_0, msg_m_00, '', msg_m_1, msg_m_2)
-        m_avg *= m.pow(10, 11)
         v_avg = input_float_value(msg_v_0, msg_v_00, msg_v_000,
                                   msg_v_1, msg_v_2)
         if system_generation_type == 'random':

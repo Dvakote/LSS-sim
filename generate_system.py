@@ -2,6 +2,7 @@
 
 import random as r
 import numpy as np
+import treecode.energy_and_momentum as EM
 
 
 def parameters_test(h, p, l,
@@ -136,12 +137,15 @@ def generate_system(config_name, inp_parametrs):
     Distance = inp_parametrs[4]
     if config_name == 'cube':
         empty_config = birth_test(inp_parametrs)
+        empty_config = EM.set_system_momentum_to_0(empty_config)
     elif config_name == 'random':
         empty_config = birth_random(inp_parametrs)
+        empty_config = EM.set_system_momentum_to_0(empty_config)
     elif config_name == 'ellipsoid':
         if (inp_parametrs[5] == 0) or (inp_parametrs[6] == 0) \
                 or (inp_parametrs[7] == 0):
             empty_config = 'zero volume'
         else:
             empty_config = birth_ellipsoid(inp_parametrs)
+            empty_config = EM.set_system_momentum_to_0(empty_config)
     return empty_config
