@@ -26,7 +26,7 @@ def tree_root(particles, mass_center):
         # каждый куб обсчитывается в своем процессе
         a_parallel = Parallel(n_jobs=WORKERS, verbose=0)(
             delayed(tc.begin_tree)(particles, mass_center, i,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
             for i in range(1, 9))
         accel = a_parallel[0] + a_parallel[1] + a_parallel[2] + a_parallel[3]
         + a_parallel[4] + a_parallel[5] + a_parallel[6] + a_parallel[7]
@@ -36,28 +36,28 @@ def tree_root(particles, mass_center):
         # каждый куб обсчитывается последовательно на одном ядре
         if not mass_center[1, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 1,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[2, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 2,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[3, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 3,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[4, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 4,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[5, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 5,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[6, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 6,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[7, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 7,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
         if not mass_center[8, 6] == 0:
             accel += tc.begin_tree(particles, mass_center, 8,
-                                   NUMBER_OF_CELLS, SMOOTH_LENGTH)
+                                   SYSTEM_PARAMETERS)
     return accel
 
 
@@ -126,13 +126,12 @@ if __name__ == "__main__":
     # =======================================================================
     # Гравитационная постоянная
     # G = 6.67408313 * m.pow(10, -11)  # м^3/(кг*с^2)
-    # G = 4.51811511 * m.pow(10, -15)  # кпк^3/(М_(Солнца)* (10^12 с)^2)
-    # G = 4.51811511 * m.pow(10, -7)  # кпк^3/(М_(Млечного пути)* (10^15 с)^2)
-    G = 1
+    G = 4.51811511 * m.pow(10, -7)  # кпк^3/(М_(Млечного пути)* (10^15 с)^2)
+#    G = 1  # Безразмерная константа
     # Скорость света
     # C = 299792458 # м/с
-    # C = 9.7156188999  # кпк/(10^12 с)
-    C = 1022.06028776
+    C = 9.7156188999  # Мпк/(10^15 с)
+#    C = 1022.06028776  # Безразмерная константа
 # ===========================================================================
 # ^ Константы ^
 # v Параметры системы v
@@ -147,24 +146,20 @@ if __name__ == "__main__":
 
 # Временной интервал
     # TIME_STEP = pow(10, 13)  # с
-    # TIME_STEP = 1.0  # 10^12 с
-    # TIME_STEP = 0.01  # 10^15 с
-    TIME_STEP = 0.001
+    TIME_STEP = 0.1  # 10^15 с
+#    TIME_STEP = 0.1  # Безразмерная величина
 
 # Параметр "сглаживания" гравитационного взаимодействия на близких дистанциях
-#    SMOOTH_LENGTH = 5.0  # кпк
-    SMOOTH_LENGTH = 1.0
+    SMOOTH_LENGTH = 0.005  # Мпк
+#    SMOOTH_LENGTH = 1.0  # Безразмерная величина
 
 # Параметры, которые нужны чаще всего (можно и нужно трогать)
 # Количество ячеек по одной оси координат (для tree codes)
 # в виде 2^(NUMBER_OF_CELLS)
-    NUMBER_OF_CELLS = 1
+    NUMBER_OF_CELLS = 2
 
 # Минимальный размер ячейки по одной оси координат
-    # CELL_LENGTH = 2 * 3.08567758 * pow(10, 22) # м
-    # CELL_LENGTH = 2 * m.pow(10, 3)  # кпк
-    # CELL_LENGTH = 5 # Мпк
-    CELL_LENGTH = SMOOTH_LENGTH * 100
+    CELL_LENGTH = SMOOTH_LENGTH * 3000
 
 # Задаем первоначальный размер системы в единицах "CELL_LENGTH"
 # для функции parameters_test
@@ -183,32 +178,37 @@ if __name__ == "__main__":
 # Начальные угловые скорости эллипсоида
     W_X = 0.0
     W_Y = 0.0
-    W_Z = 0.37
+    W_Z = 0.00136
 
 # Средняя масса наблюдаемых объектов и их пекулярная скорость
     # M_AVG = 1.98892 * pow(10, 41) # кг
-    # V_AVG = 0 #4 * pow(10, 5) / np.sqrt(3) # м/с
-#    M_AVG = pow(10, 11)  # масс Солнц
-    V_AVG = 0.0  # 1.3 * pow(10, -2) / np.sqrt(3) # кпк/(10^12 c)
     M_AVG = 1  # масс Млечного пути
-    # V_AVG = 0 #1.3 * pow(10, -2) / np.sqrt(3) # Мпк/(10^15 c)
+    # V_AVG = 0 # 4 * pow(10, 5) / np.sqrt(3) # м/с
+    V_AVG = 0  # 1.3 * pow(10, -2) / np.sqrt(3) # Мпк/(10^15 c)
+
+# Константы модифицированных теорий гравитации
+    ALPHA = 1
+    LAMBDA = 1
+    GAMMA = 1
 
 # Количество частиц
     N = 1000
 # Число шагов
-    STEPS = 20000
+    STEPS = 1
 # Номера шагов, на которых требуется "сфотографировать" положение всех
 # материальных точек
     MAKE_PRELAUNCH_SCREENSHOT = False
     SCR_STEP = []
 # Тип сгенерированной системы (обязательно заполнить!)
-    SYSTEM_GENERATION_TYPE = 'final'
+    SYSTEM_GENERATION_TYPE = 'last'
+# Тип используемой гравитации
+    GRAVITY_TYPE = 'Newton'
 # Использовать несколько процессов для вычислений
     USE_MULTIPROCESSING = False
 # Использовать данные, введенные вручную
-    USE_MANUAL_INPUT = False
+    USE_MANUAL_INPUT = True
 # Использовать телеметрию
-    USE_TELEMETRY = True
+    USE_TELEMETRY = False
 # Обратить время вспять
     INVERSE_TIME = False
 # ===========================================================================
@@ -271,11 +271,22 @@ if __name__ == "__main__":
         else:
             print('Введено недопустимое значение')
             INVERSE_TIME = False
-        TIME_STEP = int(INP_PARAMETERS[18])
+#        Достаем из массива значения, необходимые для работы программы
+        NUMBER_OF_CELLS = int(INP_PARAMETERS[3])
+        TIME_STEP = float(INP_PARAMETERS[18])
         STEPS = int(INP_PARAMETERS[19])
-        SMOOTH_LENGTH = int(INP_PARAMETERS[20])
+        SMOOTH_LENGTH = float(INP_PARAMETERS[20])
         SYSTEM_GENERATION_TYPE = str(INP_PARAMETERS[21])
+        GRAVITY_TYPE = str(INP_PARAMETERS[22])
+        ALPHA = float(INP_PARAMETERS[23])
+        LAMBDA = float(INP_PARAMETERS[24])
+        GAMMA = float(INP_PARAMETERS[25])
     else:
+        if NUMBER_OF_CELLS > 0:
+            NUMBER_OF_CELLS = int(m.pow(2, int(NUMBER_OF_CELLS)))
+        else:
+            ALLOW_LAUNCH = False
+            print('Количество ячеек не может быть нулевым или отрицательным')
         INP_PARAMETERS = [N, M_AVG, V_AVG,
                           NUMBER_OF_CELLS, CELL_LENGTH,
                           A_ELLIPSOID, B_ELLIPSOID, C_ELLIPSOID,
@@ -286,13 +297,14 @@ if __name__ == "__main__":
     if (TIME_STEP <= 0) or (CELL_LENGTH <= 0):
         ALLOW_LAUNCH = False
         print('Недопустимые параметры системы')
-    if NUMBER_OF_CELLS > 0:
-        NUMBER_OF_CELLS = int(m.pow(2, int(NUMBER_OF_CELLS)))
-    else:
-        ALLOW_LAUNCH = False
-        print('Количество ячеек не может быть нулевым или отрицательным')
     if INVERSE_TIME:
         TIME_STEP *= -1
+    if (GRAVITY_TYPE == 'plusYukawa') and (LAMBDA == 0):
+        ALLOW_LAUNCH = False
+        print('Параметр lambda small не может быть нулевым')
+    GAMMA = (m.sqrt((1 + GAMMA) / 2) - 1) * G / C_2
+    SYSTEM_PARAMETERS = [NUMBER_OF_CELLS, SMOOTH_LENGTH,
+                         GRAVITY_TYPE, ALPHA, LAMBDA, GAMMA]
     try:
         try:
             try:
@@ -333,12 +345,6 @@ if __name__ == "__main__":
         ALLOW_LAUNCH = False
         print('Неприемлимое число материальных точек')
     if ALLOW_LAUNCH:
-        # Если загруженная конфигурация старая, то придаем ей
-        # используемую в настоящий момент форму
-        if np.size(X, 1) == 12:
-            MIRGATION = np.zeros([np.size(X, 0), 2])
-            X = np.hstack((X, MIRGATION))
-            np.savetxt('last config.txt', X)
         # Определяем количество используемых процессов в зависимости
         # от используемого процессора
         if WORKERS >= 8:
@@ -351,7 +357,7 @@ if __name__ == "__main__":
             USE_MULTIPROCESSING = False
         try:
             if MAKE_PRELAUNCH_SCREENSHOT:
-                graph.screenshot(X, 'Шаг 0', MARKER_SIZE)
+                graph.screenshot_selected_volume(X, 'Шаг 0', MARKER_SIZE)
             ENERGY = np.zeros([STEPS, 9])
             Xt = np.zeros([STEPS, 4])
             START_COUNT = time.time()
@@ -363,7 +369,7 @@ if __name__ == "__main__":
                 is_gravity_field_weak(X)
                 if ERROR:
                     np.savetxt('error config.txt', X)
-                    graph.screenshot(X, ERROR_NAME, MARKER_SIZE)
+                    graph.screenshot_all_system(X, ERROR_NAME, MARKER_SIZE)
                     print(ERROR_NAME + ' at step ' + str(q))
                     break
                 Xt[q] = [q,
@@ -399,17 +405,18 @@ if __name__ == "__main__":
                 X[:, 12] = EM.kinetic_energy_Newton(X)
                 X[:, 13] = EM.potential_energy_Newton(X)
                 if q in SCR_STEP:
-                    graph.screenshot(X, 'Шаг ' + str(q), MARKER_SIZE)
+                    graph.screenshot_selected_volume(X, 'Шаг ' + str(q),
+                                                     MARKER_SIZE)
             COMPUTING_TIME = time.time() - START_COUNT
             print("Время выполнения", COMPUTING_TIME, "с")
             if USE_TELEMETRY:
                 graph.full_telemetry(ENERGY, N)
-                graph.plot_xt(Xt)
+#                graph.plot_xt(Xt)
         except KeyboardInterrupt:
             print('Работа программы прервана')
             if USE_TELEMETRY:
                 graph.full_telemetry(ENERGY, N)
-                graph.plot_xt(Xt)
+#                graph.plot_xt(Xt)
         print('Сохранить финальную конфигурацию системы?')
         print('y?')
         INPUT_VARIABLE = input()
