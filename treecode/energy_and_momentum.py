@@ -26,6 +26,17 @@ def momentum_of_particles(Y):
         print(P)
 
 
+def momentum_of_system_in_volume(Y, part_num):
+    # Функция, определяющая импульс системы в выбранном объеме
+    # и выводящая его в строку
+    P = np.zeros([np.size(Y, 0), 3])
+    P[part_num:, 0] = np.multiply(Y[part_num:, 3], Y[part_num:, 6])
+    P[part_num:, 1] = np.multiply(Y[part_num:, 4], Y[part_num:, 6])
+    P[part_num:, 2] = np.multiply(Y[part_num:, 5], Y[part_num:, 6])
+    momentum = P.sum(axis=0)
+    return momentum
+
+
 def set_system_momentum_to_0(Y):
     size_Y = np.size(Y, 0)
     speed_change = np.zeros([size_Y, 3])
@@ -57,7 +68,7 @@ def potential_energy_Newton(Y):
 
 
 def system_kinetic_energy(Y):
-    # Функция, определяющая полную энергию системы
+    # Функция, определяющая полную кинетическую энергию системы
     E = kinetic_energy_Newton(Y)
     E = E.sum(axis=0)
     return E
@@ -73,6 +84,29 @@ def system_energy_Newton(Y):
     # Функция, определяющая полную энергию системы
     E = system_kinetic_energy(Y)
     E += system_potential_energy(Y)
+    return E
+
+
+def kinetic_energy_in_volume(Y, part_num):
+    # Функция, определяющая кинетическую энергию системы в выбранном объеме
+    V = np.multiply(Y[part_num:, 3:6], Y[part_num:, 3:6])
+    E = V.sum(axis=1)
+    E = np.multiply(E[:], Y[part_num:, 6])
+    E *= 0.5
+    E = E.sum(axis=0)
+    return E
+
+
+def potential_energy_in_volume(Y, part_num):
+    E = np.multiply(Y[part_num:, 10], Y[part_num:, 6])
+    E *= 0.5
+    E = E.sum(axis=0)
+    return E
+
+
+def system_energy_in_volume(Y, part_num):
+    E = kinetic_energy_in_volume(Y, part_num)
+    E += potential_energy_in_volume(Y, part_num)
     return E
 
 

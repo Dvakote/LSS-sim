@@ -119,6 +119,15 @@ def manual_input(c):
     msg_gamma_1 = 'Параметр gamma должен быть числом'
     msg_gamma_2 = 'Введите параметр gamma еще раз'
     print('Введите название используемой конфигурации системы')
+    # Задаем значения, чтобы программа не выдавала ошибку
+    # при загрузке конфигурации
+    N = 0
+    m_avg, v_avg = 0, 0
+    a_inp, b_inp, c_inp = 0, 0, 0
+    w_x, w_y, w_z = 0, 0, 0
+    i_test, j_test, k_test = 0, 0, 0
+    indent_i, indent_j, indent_k = 0, 0, 0
+    period = 0
     system_generation_type = str(input())
     Distance = input_float_value(msg_d_0, '', '', msg_d_1, msg_d_2)
     n = input_int_value(msg_n_0, msg_n_1, msg_n_2)
@@ -143,6 +152,7 @@ def manual_input(c):
         Alpha = 0
         Lambda = 0
         Gamma = 0
+
     if (system_generation_type == 'random') or \
         (system_generation_type == 'cube') or\
             (system_generation_type == 'ellipsoid'):
@@ -189,16 +199,6 @@ def manual_input(c):
                                            msg_w_1, w_crit)
             w_z = input_float_less_1_value(msg_w_0, msg_wz_0,
                                            msg_w_1, w_crit)
-    else:
-        # Задаем значения, чтобы программа не выдавала ошибку
-        # при загрузке конфигурации
-        N = 0
-        m_avg, v_avg = 0, 0
-        a_inp, b_inp, c_inp = 0, 0, 0
-        w_x, w_y, w_z = 0, 0, 0
-        i_test, j_test, k_test = 0, 0, 0
-        indent_i, indent_j, indent_k = 0, 0, 0
-        period = 0
     inp_parameters = [N, m_avg, v_avg,
                       n, Distance,
                       a_inp, b_inp, c_inp,

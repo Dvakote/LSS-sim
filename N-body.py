@@ -16,6 +16,8 @@ import treecode.tree_code as tc
 import treecode.energy_and_momentum as EM
 import treecode.make_graph as graph
 import treecode.input_parametrs as parameters
+import treecode.telemetry as tlm
+import treecode.fractal as fractal
 # import threading
 
 
@@ -25,11 +27,11 @@ def tree_root(particles, mass_center):
         # Весь объем системы разбивается на 8 кубов
         # каждый куб обсчитывается в своем процессе
         a_parallel = Parallel(n_jobs=WORKERS, verbose=0)(
-            delayed(tc.begin_tree)(particles, mass_center, i,
+            delayed(tc.begin_tree)(particles, mass_center, i+1,
                                    SYSTEM_PARAMETERS)
-            for i in range(1, 9))
-        accel = a_parallel[0] + a_parallel[1] + a_parallel[2] + a_parallel[3]
-        + a_parallel[4] + a_parallel[5] + a_parallel[6] + a_parallel[7]
+            for i in range(0, 8))
+        accel = a_parallel[0] + a_parallel[1] + a_parallel[2] + a_parallel[3] \
+            + a_parallel[4] + a_parallel[5] + a_parallel[6] + a_parallel[7]
     else:
         accel = np.zeros([np.size(particles, 0), 4])
         # Весь объем системы разбивается на 8 кубов
@@ -84,7 +86,7 @@ def tree_code_one_step(particles):
     # за рассматриваемый объем
     if particles[0, 11] < 0:
         # Считаем взаимодействие с улетевшими точками напрямую
-        particles = tc.N_body_direct(particles, SMOOTH_LENGTH)
+        particles = tc.N_body_direct(particles, SYSTEM_PARAMETERS)
     particles[:, 7:11] *= G
     # рассчет изменения компонент скорости
     # по формуле V_{i + 1} = V_{i + 1/2} + a_{i + 1} * dt / 2
@@ -92,41 +94,12 @@ def tree_code_one_step(particles):
     return particles
 
 
-def is_gravity_field_weak(particles):
-    # Функция, выдающая ошибку, если гравитационное поле становится
-    # слишком сильным для применения используемой модели
-    global ERROR
-    global ERROR_NAME
-    # Считаем величину phi / c^2, где phi - гравитационный потенциал
-    Array_phi = abs(particles[:, 10] / C_2)
-    # если модуль phi / c^2 превышает определенное значение, то
-    # гравитационное поле считаем сильным что выходит за границы
-    # применимости используемой модели
-    Array_phi = Array_phi >= 0.05
-    if Array_phi.any():
-        ERROR = True
-        ERROR_NAME = 'Strong gravity field error'
-
-
-def speed_limit(particles):
-    # Функция, выдающая ошибку если скорость материальной
-    # точки станет больше скорости света
-    global ERROR
-    global ERROR_NAME
-    v = np.zeros([np.size(particles, 0), 3])
-    v = np.multiply(particles[:, 3:6], particles[:, 3:6])
-    v_2 = v.sum(axis=1) >= C_2
-    if v_2.any():
-        ERROR = True
-        ERROR_NAME = 'FTL error'
-
-
 if __name__ == "__main__":
     # v Константы v
     # =======================================================================
     # Гравитационная постоянная
     # G = 6.67408313 * m.pow(10, -11)  # м^3/(кг*с^2)
-    G = 4.51811511 * m.pow(10, -7)  # кпк^3/(М_(Млечного пути)* (10^15 с)^2)
+    G = 4.51811511 * m.pow(10, -7)  # Мпк^3/(М_(Млечного пути)* (10^15 с)^2)
 #    G = 1  # Безразмерная константа
     # Скорость света
     # C = 299792458 # м/с
@@ -139,8 +112,7 @@ if __name__ == "__main__":
 # Прочие переменные (желательно не трогать)
     MARKER_SIZE = 0.2  # 1
     C_2 = C * C
-    ERROR = False
-    ERROR_NAME = ''
+    ERROR = ''
     ALLOW_LAUNCH = True
     WORKERS = os.cpu_count()
 
@@ -150,7 +122,7 @@ if __name__ == "__main__":
 #    TIME_STEP = 0.1  # Безразмерная величина
 
 # Параметр "сглаживания" гравитационного взаимодействия на близких дистанциях
-    SMOOTH_LENGTH = 0.005  # Мпк
+    SMOOTH_LENGTH = 0.007  # Мпк
 #    SMOOTH_LENGTH = 1.0  # Безразмерная величина
 
 # Параметры, которые нужны чаще всего (можно и нужно трогать)
@@ -159,7 +131,7 @@ if __name__ == "__main__":
     NUMBER_OF_CELLS = 2
 
 # Минимальный размер ячейки по одной оси координат
-    CELL_LENGTH = SMOOTH_LENGTH * 3000
+    CELL_LENGTH = SMOOTH_LENGTH * 2000
 
 # Задаем первоначальный размер системы в единицах "CELL_LENGTH"
 # для функции parameters_test
@@ -178,7 +150,7 @@ if __name__ == "__main__":
 # Начальные угловые скорости эллипсоида
     W_X = 0.0
     W_Y = 0.0
-    W_Z = 0.00136
+    W_Z = 0.00154
 
 # Средняя масса наблюдаемых объектов и их пекулярная скорость
     # M_AVG = 1.98892 * pow(10, 41) # кг
@@ -187,28 +159,28 @@ if __name__ == "__main__":
     V_AVG = 0  # 1.3 * pow(10, -2) / np.sqrt(3) # Мпк/(10^15 c)
 
 # Константы модифицированных теорий гравитации
-    ALPHA = 1
-    LAMBDA = 1
-    GAMMA = 1
+    ALPHA = 4
+    LAMBDA = 3.2407729 * m.pow(10, -29)
+    GAMMA = 2.5 * m.pow(10, -6)
 
 # Количество частиц
-    N = 1000
+    N = 10000
 # Число шагов
-    STEPS = 1
+    STEPS = 5000
 # Номера шагов, на которых требуется "сфотографировать" положение всех
 # материальных точек
-    MAKE_PRELAUNCH_SCREENSHOT = False
+    MAKE_PRELAUNCH_SCREENSHOT = True
     SCR_STEP = []
 # Тип сгенерированной системы (обязательно заполнить!)
-    SYSTEM_GENERATION_TYPE = 'last'
+    SYSTEM_GENERATION_TYPE = 'final'
 # Тип используемой гравитации
     GRAVITY_TYPE = 'Newton'
 # Использовать несколько процессов для вычислений
     USE_MULTIPROCESSING = False
 # Использовать данные, введенные вручную
-    USE_MANUAL_INPUT = True
+    USE_MANUAL_INPUT = False
 # Использовать телеметрию
-    USE_TELEMETRY = False
+    USE_TELEMETRY = True
 # Обратить время вспять
     INVERSE_TIME = False
 # ===========================================================================
@@ -302,7 +274,7 @@ if __name__ == "__main__":
     if (GRAVITY_TYPE == 'plusYukawa') and (LAMBDA == 0):
         ALLOW_LAUNCH = False
         print('Параметр lambda small не может быть нулевым')
-    GAMMA = (m.sqrt((1 + GAMMA) / 2) - 1) * G / C_2
+    GAMMA = GAMMA * G / C_2
     SYSTEM_PARAMETERS = [NUMBER_OF_CELLS, SMOOTH_LENGTH,
                          GRAVITY_TYPE, ALPHA, LAMBDA, GAMMA]
     try:
@@ -357,53 +329,36 @@ if __name__ == "__main__":
             USE_MULTIPROCESSING = False
         try:
             if MAKE_PRELAUNCH_SCREENSHOT:
-                graph.screenshot_selected_volume(X, 'Шаг 0', MARKER_SIZE)
-            ENERGY = np.zeros([STEPS, 9])
-            Xt = np.zeros([STEPS, 4])
+                graph.screenshot_all_system(X, 'Шаг 0', MARKER_SIZE)
+            ENERGY = np.zeros([STEPS, 14])
             START_COUNT = time.time()
             for q in range(STEPS):
                 # Проверяем, не появились ли в системе сильные
                 # гравитационные поля или скорости, равные или
                 # превышающие световую
-                speed_limit(X)
-                is_gravity_field_weak(X)
-                if ERROR:
+                ERROR = tlm.speed_limit(X, C_2)
+                ERROR = tlm.is_gravity_field_weak(X, C_2)
+                if not ERROR == '':
                     np.savetxt('error config.txt', X)
-                    graph.screenshot_all_system(X, ERROR_NAME, MARKER_SIZE)
-                    print(ERROR_NAME + ' at step ' + str(q))
+                    graph.screenshot_all_system(X, ERROR, MARKER_SIZE)
+                    print(ERROR + ' at step ' + str(q))
                     break
-                Xt[q] = [q,
-                         X[0, 0],
-                         X[1, 0],
-                         X[2, 0]]
                 # Выполняем один шаг по алгоритму tree code
                 X = tree_code_one_step(X)
-                momentum = EM.momentum_of_system(X)
-                # Записываем энергию системы в отдельный массив
-                # 1) номер шага
-                # 2) кинетическая энергия всей системы
-                # 3) потенциальная энергия всей системы
-                # 4) полная энергия всей системы
-                # 5) максимальная разница в кинетической энергии
-                # между исследуемым шагом и предыдущим
-                # 6) максимальная разница в потенциальной энергии
-                # между исследуемым шагом и предыдущим
-                # 7) импульс системы по оси X
-                # 8) импульс системы по оси particles
-                # 9) импульс системы по оси Z
-                ENERGY[q] = [q,
-                             EM.system_kinetic_energy(X),
-                             EM.system_potential_energy(X),
-                             EM.system_energy_Newton(X),
-                             EM.max_dT(X),
-                             EM.max_dU(X),
-                             momentum[0],
-                             momentum[1],
-                             momentum[2]]
                 # записываем кинетическую и потенциальную энергию
                 # каждой частицы для последующего использования
+                ENERGY[q] = tlm.enegry_parameters(q, X)
                 X[:, 12] = EM.kinetic_energy_Newton(X)
                 X[:, 13] = EM.potential_energy_Newton(X)
+                if q == 10000:
+                    np.savetxt('backup 10k.txt', X)
+                    np.savetxt('backup E 10k.txt', ENERGY)
+                if q == 20000:
+                    np.savetxt('backup 20k.txt', X)
+                    np.savetxt('backup E 20k.txt', ENERGY)
+                if q == 30000:
+                    np.savetxt('backup 30k.txt', X)
+                    np.savetxt('backup E 30k.txt', ENERGY)
                 if q in SCR_STEP:
                     graph.screenshot_selected_volume(X, 'Шаг ' + str(q),
                                                      MARKER_SIZE)
@@ -411,12 +366,14 @@ if __name__ == "__main__":
             print("Время выполнения", COMPUTING_TIME, "с")
             if USE_TELEMETRY:
                 graph.full_telemetry(ENERGY, N)
-#                graph.plot_xt(Xt)
+                graph.plot_combined_energy_in_volume(ENERGY)
+                graph.plot_virial_coeff(ENERGY)
         except KeyboardInterrupt:
             print('Работа программы прервана')
             if USE_TELEMETRY:
                 graph.full_telemetry(ENERGY, N)
-#                graph.plot_xt(Xt)
+                graph.plot_combined_energy_in_volume(ENERGY)
+                graph.plot_virial_coeff(ENERGY)
         print('Сохранить финальную конфигурацию системы?')
         print('y?')
         INPUT_VARIABLE = input()
@@ -424,5 +381,12 @@ if __name__ == "__main__":
             np.savetxt('final config.txt', X)
         else:
             print('Конфигурация не будет сохранена')
+        print('Построить графики зависимости M(R)?')
+        print('y?')
+        if INPUT_VARIABLE == 'y':
+            fractal.make_dependency(X, NUMBER_OF_CELLS,
+                                    CELL_LENGTH, SMOOTH_LENGTH)
+        else:
+            print('Построение графиков отменено')
 # ===========================================================================
 # ^ Область с исполняемым кодом ^

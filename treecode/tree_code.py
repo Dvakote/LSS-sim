@@ -5,13 +5,17 @@
 @author: Дмитрий Мелкозеров
 """
 
-import math as m
 import numpy as np
 import tree_code_math as tcm
 
 
-def N_body_direct(X0, smooth):
+def N_body_direct(X0, SYSTEM_PARAMETERS):
     # Ньютоновская гравитация, метод частица-частица
+    smooth = float(SYSTEM_PARAMETERS[1])
+    GRAVITY_TYPE = str(SYSTEM_PARAMETERS[2])
+    ALPHA = float(SYSTEM_PARAMETERS[3])
+    LAMBDA = float(SYSTEM_PARAMETERS[4])
+    GAMMA = float(SYSTEM_PARAMETERS[5])
     total_part = np.size(X0, 0)
     A = np.zeros((total_part, 4))
     part_num = 0
@@ -19,7 +23,13 @@ def N_body_direct(X0, smooth):
         part_num += 1
         if part_num == total_part:
             break
-    A = tcm.g_force_Newton(X0, part_num, total_part, smooth)
+    if GRAVITY_TYPE == 'Newton':
+        A = tcm.g_force_Newton(X0, part_num, total_part, smooth)
+    elif GRAVITY_TYPE == 'plusYukawa':
+        A = tcm.g_force_plusYukawa(X0, part_num, total_part,
+                                   smooth, ALPHA, LAMBDA)
+    elif GRAVITY_TYPE == 'BD':
+        A = tcm.g_force_BD(X0, part_num, total_part, smooth, GAMMA)
     # for l in range(total_part):
     #   if not part_num == l:
     #       A[l] = g_force_Newton(X0, part_num, l, smooth)
@@ -30,9 +40,17 @@ def N_body_direct(X0, smooth):
 def branch_to_leafes(Mass_center, current_cell, cell_num, Numbers):
     # Функция, рассчитывающая гравитационное воздействие на частицы в
     # ячейке current_cell со стороны ячейки cell_num
-    if Mass_center[current_cell, 11] == n:
+    if Mass_center[current_cell, 9] == n:
         Numbers.append(current_cell)
     else:
+        if not Mass_center[int(Mass_center[current_cell, 10]), 6] == 0:
+            Numbers = branch_to_leafes(Mass_center,
+                                       int(Mass_center[current_cell, 10]),
+                                       cell_num, Numbers)
+        if not Mass_center[int(Mass_center[current_cell, 11]), 6] == 0:
+            Numbers = branch_to_leafes(Mass_center,
+                                       int(Mass_center[current_cell, 11]),
+                                       cell_num, Numbers)
         if not Mass_center[int(Mass_center[current_cell, 12]), 6] == 0:
             Numbers = branch_to_leafes(Mass_center,
                                        int(Mass_center[current_cell, 12]),
@@ -57,38 +75,29 @@ def branch_to_leafes(Mass_center, current_cell, cell_num, Numbers):
             Numbers = branch_to_leafes(Mass_center,
                                        int(Mass_center[current_cell, 17]),
                                        cell_num, Numbers)
-        if not Mass_center[int(Mass_center[current_cell, 18]), 6] == 0:
-            Numbers = branch_to_leafes(Mass_center,
-                                       int(Mass_center[current_cell, 18]),
-                                       cell_num, Numbers)
-        if not Mass_center[int(Mass_center[current_cell, 19]), 6] == 0:
-            Numbers = branch_to_leafes(Mass_center,
-                                       int(Mass_center[current_cell, 19]),
-                                       cell_num, Numbers)
     return Numbers
 
 
 def tree_branch(Particles, Mass_center, current_cell, cell_num, A):
     # Функция, определяющая дальнейший алгоритм действий, исходя из
     # заданного критерия раскрытия ячеек (15.04.18)
-    sqr_dist = m.pow(Mass_center[current_cell, 3]
-                     - Mass_center[cell_num, 3], 2) \
-        + m.pow(Mass_center[current_cell, 4] - Mass_center[cell_num, 4], 2) \
-        + m.pow(Mass_center[current_cell, 5] - Mass_center[cell_num, 5], 2)
-    if sqr_dist > Mass_center[cell_num, 10]:
+    sqr_dist = tcm.sqr_dist(Mass_center, current_cell, cell_num)
+    if sqr_dist > Mass_center[cell_num, 8]:
         Numbers_of_cells = []
         Numbers_of_cells = branch_to_leafes(Mass_center,
                                             current_cell, cell_num,
                                             Numbers_of_cells)
         Numbers_of_particles = []
         for l in Numbers_of_cells:
-            for k in range(int(Mass_center[l, 12]),
-                           int(Mass_center[l, 13])):
+            for k in range(int(Mass_center[l, 10]),
+                           int(Mass_center[l, 11])):
                 Numbers_of_particles.append(k)
         if GRAVITY_TYPE == 'Newton':
             for p in Numbers_of_particles:
-                A[p] += tcm.int_C_to_P(Particles, Mass_center, p, cell_num)
+                A[p] += tcm.int_C_to_P(Particles, Mass_center,
+                                       p, cell_num)
         elif GRAVITY_TYPE == 'plusYukawa':
+            print('Yukawa')
             for p in Numbers_of_particles:
                 A[p] += tcm.interaction_C2P_plus_Yukawa(Particles,
                                                         Mass_center,
@@ -102,11 +111,11 @@ def tree_branch(Particles, Mass_center, current_cell, cell_num, A):
                                                          p, cell_num)
 #            A[p] += int_C_to_P(Particles, Mass_center, p, cell_num)
     else:
-        if Mass_center[cell_num, 11] == n:
-            n1 = int(Mass_center[current_cell, 12])
-            n2 = int(Mass_center[current_cell, 13])
-            n_1 = int(Mass_center[cell_num, 12])
-            n_2 = int(Mass_center[cell_num, 13])
+        if Mass_center[cell_num, 9] == n:
+            n1 = int(Mass_center[current_cell, 10])
+            n2 = int(Mass_center[current_cell, 11])
+            n_1 = int(Mass_center[cell_num, 10])
+            n_2 = int(Mass_center[cell_num, 11])
             if GRAVITY_TYPE == 'Newton':
                 A[n1:n2] += tcm.int_Ps_to_P(Particles, n1, n2,
                                             n_1, n_2, eps_smooth)
@@ -132,6 +141,12 @@ def tree_branch(Particles, Mass_center, current_cell, cell_num, A):
 
 def sub_tree_branch(Particles, Mass_center, current_cell, cell_num, A):
     # Функция, которая задает ячейки, воздействующие на частицы (15.04.18)
+    if not Mass_center[int(Mass_center[cell_num, 10]), 6] == 0:
+        A = tree_branch(Particles, Mass_center, current_cell,
+                        int(Mass_center[cell_num, 10]), A)
+    if not Mass_center[int(Mass_center[cell_num, 11]), 6] == 0:
+        A = tree_branch(Particles, Mass_center, current_cell,
+                        int(Mass_center[cell_num, 11]), A)
     if not Mass_center[int(Mass_center[cell_num, 12]), 6] == 0:
         A = tree_branch(Particles, Mass_center, current_cell,
                         int(Mass_center[cell_num, 12]), A)
@@ -150,18 +165,18 @@ def sub_tree_branch(Particles, Mass_center, current_cell, cell_num, A):
     if not Mass_center[int(Mass_center[cell_num, 17]), 6] == 0:
         A = tree_branch(Particles, Mass_center, current_cell,
                         int(Mass_center[cell_num, 17]), A)
-    if not Mass_center[int(Mass_center[cell_num, 18]), 6] == 0:
-        A = tree_branch(Particles, Mass_center, current_cell,
-                        int(Mass_center[cell_num, 18]), A)
-    if not Mass_center[int(Mass_center[cell_num, 19]), 6] == 0:
-        A = tree_branch(Particles, Mass_center, current_cell,
-                        int(Mass_center[cell_num, 19]), A)
     return A
 
 
 def main_tree_branch(Particles, Mass_center, current_cell, cell_num, A):
     # Функция, задающая ячейки, частицы в которых
     # будут испытывать воздействие (15.04.18)
+    if not Mass_center[int(Mass_center[current_cell, 10]), 6] == 0:
+        A = sub_tree_branch(Particles, Mass_center,
+                            int(Mass_center[current_cell, 10]), cell_num, A)
+    if not Mass_center[int(Mass_center[current_cell, 11]), 6] == 0:
+        A = sub_tree_branch(Particles, Mass_center,
+                            int(Mass_center[current_cell, 11]), cell_num, A)
     if not Mass_center[int(Mass_center[current_cell, 12]), 6] == 0:
         A = sub_tree_branch(Particles, Mass_center,
                             int(Mass_center[current_cell, 12]), cell_num, A)
@@ -180,12 +195,6 @@ def main_tree_branch(Particles, Mass_center, current_cell, cell_num, A):
     if not Mass_center[int(Mass_center[current_cell, 17]), 6] == 0:
         A = sub_tree_branch(Particles, Mass_center,
                             int(Mass_center[current_cell, 17]), cell_num, A)
-    if not Mass_center[int(Mass_center[current_cell, 18]), 6] == 0:
-        A = sub_tree_branch(Particles, Mass_center,
-                            int(Mass_center[current_cell, 18]), cell_num, A)
-    if not Mass_center[int(Mass_center[current_cell, 19]), 6] == 0:
-        A = sub_tree_branch(Particles, Mass_center,
-                            int(Mass_center[current_cell, 19]), cell_num, A)
     return A
 
 

@@ -33,6 +33,21 @@ def plot_momentum_of_system(P):
     plt.savefig('Импульс системы', dpi=640)
 
 
+# def plot_momentum_of_system_in_volume(P):
+#    # Функция, создающая графики импульса системы
+#    # за все время работы программы
+#    fig = plt.figure()
+#    ax = fig.add_subplot(111)
+#    ax.plot(P[:, 0], P[:, 12], label='P_x', color='black')
+#    ax.plot(P[:, 0], P[:, 13], label='P_y', color='red')
+#    ax.plot(P[:, 0], P[:, 14], label='P_z', color='blue')
+#    ax.set_xlabel('Номер шага')
+#    ax.set_ylabel('Импульс')
+#    ax.set_title('Импульс системы в заданном объеме')
+#    plt.legend()
+#    plt.savefig('Импульс системы в заданном объеме', dpi=640)
+
+
 def plot_max_dE_kinetic(dE):
     # Функция, создающая график максимальной разницы
     # кинетической энергии частиц за все время работы программы
@@ -119,6 +134,21 @@ def plot_combined_energy(E):
     plt.savefig('Кинетическая, потенциальная, полная энергия системы', dpi=640)
 
 
+def plot_combined_energy_in_volume(E):
+    # Функция, создающая график потенциальной энергии частиц
+    # внутри первоначального объема за все время работы программы
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(E[:, 0], E[:, 11], label='Полная энергия', color='black')
+    ax.plot(E[:, 0], E[:, 9], label='Кинетическая энергия', color='red')
+    ax.plot(E[:, 0], E[:, 10], label='Потенциальная энергия', color='blue')
+    ax.set_xlabel('Номер шага')
+    ax.set_ylabel('Энергия')
+    ax.set_title('Энергия системы внутри рассматриваемого объема')
+    plt.legend()
+    plt.savefig('Энергия системы внутри рассматриваемого объема', dpi=640)
+
+
 def screenshot_all_system(System_parameters, name, point_size):
     # Функция для "скирншота" положения всех частиц
     fig = plt.figure()
@@ -133,6 +163,20 @@ def screenshot_all_system(System_parameters, name, point_size):
     ax.set_zlabel('z, Мпк')
     plt.savefig(name, dpi=1280)
 #    plt.show()
+
+
+def plot_virial_coeff(E):
+    fig = plt.figure()
+    ax = fig.add_subplot(211)
+    ax1 = fig.add_subplot(212)
+    ax.plot(E[:, 0], E[:, 12])
+    ax1.plot(E[:, 0], E[:, 13])
+    ax.xaxis.set_ticklabels([])
+    ax1.set_xlabel('Number of steps')
+    ax.set_ylabel('All particles')
+    ax1.set_ylabel('Selected volume')
+    ax.set_title('Отношение вириала')
+    plt.savefig('Вириалы', dpi=640)
 
 
 def screenshot_selected_volume(System_parameters, name, point_size):
@@ -164,3 +208,15 @@ def full_telemetry(E, N):
     plot_system_enegry(E)
     plot_total_energy(E)
     plot_combined_energy(E)
+
+
+def plot_dependency(M_PER_RADIUS):
+    NUMBER_OF_SPHERES = np.size(M_PER_RADIUS, 1)
+    for n in range(NUMBER_OF_SPHERES):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(M_PER_RADIUS[:, n, 0], M_PER_RADIUS[:, n, 1])
+        ax.set_xlabel('R')
+        ax.set_ylabel('M')
+        ax.set_title('Зависимость M(R)')
+        plt.savefig('Зависимость M(R), сфера номер' + str(n), dpi=320)
